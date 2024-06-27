@@ -48,7 +48,7 @@ export function BlumGame() {
           />
           <Button onClick={() => placeBet(Number(betAmount))} disabled={isSpinning}>Place Bet</Button>
 
-        </FlexBoxRow>
+        </FlexBoxRow> 
             <div style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}>
             <Roulette 
                 players={gameState.players} 
