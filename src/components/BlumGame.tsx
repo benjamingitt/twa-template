@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useGame } from '../hooks/useGame';
 import { Button, Card, FlexBoxCol, FlexBoxRow, Input } from './styled/styled';
 import { Roulette } from './roulette/Roulette';
-import { useTonConnect } from '../hooks/useTonConnect';
 import { useTelegramWebApp } from '../hooks/useTelegramWebApp';
 
 function shortenAddress(address: string) {
@@ -13,7 +12,6 @@ export function BlumGame() {
   const { gameState, placeBet, isSpinning, isShowingWinner, handleSpinEnd } = useGame();
   const [betAmount, setBetAmount] = useState('');
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const { wallet } = useTonConnect();
   const { user, isInTelegram } = useTelegramWebApp();
 
   const handlePlaceBet = () => {
@@ -42,7 +40,9 @@ export function BlumGame() {
     return () => clearInterval(interval);
   }, [gameState.players, isSpinning, isShowingWinner]);
 
-  const activePlayers = gameState.players.filter(p => p.bet > 0);
+  console.log('GameState:', gameState);
+  console.log('IsSpinning:', isSpinning);
+  console.log('Winner:', gameState.winner);
 
   return (
     <Card>
@@ -55,13 +55,8 @@ export function BlumGame() {
           <p>Loading Telegram user data...</p>
         )}
         {isInTelegram && user && (
-          <p>Welcome, {user.first_name}!</p>
-        )}
-        {!wallet && (
-          <p>Please connect your wallet in the Wallet tab.</p>
-        )}
-        {isInTelegram && user && wallet ? (
           <>
+            <p>Welcome, {user.first_name}!</p>
             <p>Total Bet: {gameState.totalBet} TON</p>
             {timeRemaining !== null && (
               <p>Time until spin: {(timeRemaining / 1000).toFixed(1)} seconds</p>
@@ -81,15 +76,16 @@ export function BlumGame() {
               />
               <Button onClick={handlePlaceBet} disabled={isSpinning || isShowingWinner}>Place Bet</Button>
             </FlexBoxRow> 
-            <div style={{ width: '100%', maxWidth: '300px', margin: '0 auto' }}>
-              <Roulette 
-                players={gameState.players.filter(p => p.bet > 0)} 
-                isSpinning={isSpinning} 
-                onSpinEnd={handleSpinEnd}
-                winner={gameState.winner}
-              />
-            </div>
-
+            {gameState.players.length > 0 && (
+              <div style={{ width: '100%', maxWidth: '300px', margin: '0 auto' }}>
+                <Roulette 
+                  players={gameState.players.filter(p => p.bet > 0)} 
+                  isSpinning={isSpinning} 
+                  onSpinEnd={handleSpinEnd}
+                  winner={gameState.winner}
+                />
+              </div>
+            )}
             <h3>Current Bets:</h3>
             {gameState.players.filter(p => p.bet > 0).map((player, index) => (
               <p key={index}>
@@ -97,8 +93,6 @@ export function BlumGame() {
               </p>
             ))}
           </>
-        ) : (
-          <p>Please connect your wallet to play.</p>
         )}
       </FlexBoxCol>
     </Card>

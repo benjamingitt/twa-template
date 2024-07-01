@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GameState, initialGameState, Player } from '../game/GameState';
 import { useTelegramWebApp } from './useTelegramWebApp';
-import { useTonConnect } from './useTonConnect';
-
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#7FDBFF', '#B10DC9', '#FFDC00', '#39CCCC', '#01FF70'];
 const SPIN_DELAY = 15000; // 15 секунд
@@ -13,13 +11,12 @@ export function useGame() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [isShowingWinner, setIsShowingWinner] = useState(false);
   const { user } = useTelegramWebApp();
-  const { wallet } = useTonConnect();
   const [spinTimer, setSpinTimer] = useState<NodeJS.Timeout | null>(null);
 
   const placeBet = useCallback((amount: number) => {
-    if (!user || !wallet || isSpinning || isShowingWinner) return;
+    if (!user || isSpinning || isShowingWinner) return;
     
-    const userIdentifier = `${user.id}:${wallet}`;
+    const userIdentifier = user.id.toString();
     
     setGameState(prevState => {
       const existingPlayerIndex = prevState.players.findIndex(p => p.address === userIdentifier);
@@ -48,7 +45,7 @@ export function useGame() {
         totalBet: newTotalBet,
       };
     });
-  }, [user, wallet, isSpinning, isShowingWinner]);
+  }, [user, isSpinning, isShowingWinner]);
 
   const startSpinning = useCallback(() => {
     setIsSpinning(true);
@@ -61,9 +58,6 @@ export function useGame() {
     setIsShowingWinner(true);
     console.log(`Winner: ${gameState.winner?.address}, Amount: ${gameState.totalBet}`);
     
-    // Здесь можно добавить логику распределения награды
-    
-    // Показываем победителя в течение 5 минут
     setTimeout(() => {
       setIsShowingWinner(false);
       setGameState(prevState => ({
@@ -107,8 +101,6 @@ export function useGame() {
     placeBet, 
     isSpinning, 
     isShowingWinner,
-    handleSpinEnd,
-    user,
-    wallet
+    handleSpinEnd
   };
 }
