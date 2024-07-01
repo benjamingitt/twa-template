@@ -14,7 +14,7 @@ export function BlumGame() {
   const [betAmount, setBetAmount] = useState('');
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const { wallet } = useTonConnect();
-  const { user } = useTelegramWebApp();
+  const { user, isInTelegram } = useTelegramWebApp();
 
   const handlePlaceBet = () => {
     const amount = Number(betAmount);
@@ -48,17 +48,19 @@ export function BlumGame() {
     <Card>
       <h2>Blum Game</h2>
       <FlexBoxCol>
-        {user ? (
-          <p>Welcome, {user.first_name}!</p>
-        ) : (
+        {!isInTelegram && (
+          <p>Please open this app in Telegram.</p>
+        )}
+        {isInTelegram && !user && (
           <p>Loading Telegram user data...</p>
         )}
-        {wallet ? (
-          <p>Connected wallet: {shortenAddress(wallet)}</p>
-        ) : (
+        {isInTelegram && user && (
+          <p>Welcome, {user.first_name}!</p>
+        )}
+        {!wallet && (
           <p>Please connect your wallet in the Wallet tab.</p>
         )}
-        {user && wallet ? (
+        {isInTelegram && user && wallet ? (
           <>
             <p>Total Bet: {gameState.totalBet} TON</p>
             {timeRemaining !== null && (
