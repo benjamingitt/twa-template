@@ -4,6 +4,7 @@ import styled from "styled-components";
 import { BlumGame } from "./components/BlumGame";
 import { Wallet } from "./components/Wallet";
 import { Button, FlexBoxRow } from "./components/styled/styled";
+import WebApp from '@twa-dev/sdk';
 
 const StyledApp = styled.div`
   background-color: var(--tg-theme-bg-color, #e8e8e8);
@@ -24,30 +25,39 @@ const TabButton = styled(Button)<{ active: boolean }>`
   margin-right: 10px;
 `;
 
-function App() {
-  const [activeTab, setActiveTab] = useState<'game' | 'wallet'>('game');
 
-  return (
-    <StyledApp>
-      <AppContainer>
-        <FlexBoxRow style={{ justifyContent: 'center', marginBottom: '20px' }}>
-          <TabButton 
-            active={activeTab === 'game'} 
-            onClick={() => setActiveTab('game')}
-          >
-            Game
-          </TabButton>
-          <TabButton 
-            active={activeTab === 'wallet'} 
-            onClick={() => setActiveTab('wallet')}
-          >
-            Wallet
-          </TabButton>
-        </FlexBoxRow>
-        {activeTab === 'game' ? <BlumGame /> : <Wallet />}
-      </AppContainer>
-    </StyledApp>
-  );
-}
 
-export default App;
+  function App() {
+    const [activeTab, setActiveTab] = useState<'game' | 'wallet'>('game');
+    const isTelegramWebApp = !!WebApp.initDataUnsafe.user;
+  
+    return (
+      <StyledApp>
+        <AppContainer>
+          {isTelegramWebApp ? (
+            <>
+              <FlexBoxRow style={{ justifyContent: 'center', marginBottom: '20px' }}>
+                <TabButton 
+                  active={activeTab === 'game'} 
+                  onClick={() => setActiveTab('game')}
+                >
+                  Game
+                </TabButton>
+                <TabButton 
+                  active={activeTab === 'wallet'} 
+                  onClick={() => setActiveTab('wallet')}
+                >
+                  Wallet
+                </TabButton>
+              </FlexBoxRow>
+              {activeTab === 'game' ? <BlumGame /> : <Wallet />}
+            </>
+          ) : (
+            <p>Please open this app in Telegram.</p>
+          )}
+        </AppContainer>
+      </StyledApp>
+    );
+  }
+  
+  export default App;

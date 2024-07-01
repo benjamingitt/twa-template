@@ -49,9 +49,9 @@ export function BlumGame() {
       <h2>Blum Game</h2>
       <FlexBoxCol>
         {user ? (
-          <p>Telegram User: {user.first_name}</p>
+          <p>Welcome, {user.first_name}!</p>
         ) : (
-          <p>Please open this app in Telegram.</p>
+          <p>Loading Telegram user data...</p>
         )}
         {wallet ? (
           <p>Connected wallet: {shortenAddress(wallet)}</p>
@@ -96,7 +96,7 @@ export function BlumGame() {
             ))}
           </>
         ) : (
-          <p>Please connect your Telegram account and wallet to play.</p>
+          <p>Please connect your wallet to play.</p>
         )}
       </FlexBoxCol>
     </Card>

@@ -13,17 +13,10 @@ export function useTelegramWebApp() {
 
   useEffect(() => {
     WebApp.ready();
-
-    const initData = WebApp.initData || '';
-    if (initData) {
-      try {
-        const parsedInitData = JSON.parse(decodeURIComponent(initData));
-        if (parsedInitData.user) {
-          setUser(parsedInitData.user);
-        }
-      } catch (error) {
-        console.error('Failed to parse Telegram WebApp init data:', error);
-      }
+    
+    const initDataUnsafe = WebApp.initDataUnsafe;
+    if (initDataUnsafe.user) {
+      setUser(initDataUnsafe.user);
     }
   }, []);
 
