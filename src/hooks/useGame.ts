@@ -1,105 +1,114 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { GameState, initialGameState, Player } from '../game/GameState';
+import { useTelegramWebApp } from './useTelegramWebApp';
 import { useTonConnect } from './useTonConnect';
-import { Address } from 'ton';
 
-const GAME_DURATION = 30000; // 30 seconds
+
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#7FDBFF', '#B10DC9', '#FFDC00', '#39CCCC', '#01FF70'];
+const SPIN_DELAY = 15000; // 15 секунд
+const WINNER_DISPLAY_TIME = 300000; // 5 минут
 
 export function useGame() {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [isShowingWinner, setIsShowingWinner] = useState(false);
+  const { user } = useTelegramWebApp();
   const { wallet } = useTonConnect();
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameState.gameStartTime && !gameState.winner) {
-      timer = setInterval(() => {
-        const remaining = Math.max(0, GAME_DURATION - (Date.now() - gameState.gameStartTime!));
-        setTimeRemaining(remaining);
-        if (remaining === 0) {
-          clearInterval(timer);
-          setIsSpinning(true);
-        }
-      }, 100);
-    }
-    return () => clearInterval(timer);
-  }, [gameState.gameStartTime]);
+  const [spinTimer, setSpinTimer] = useState<NodeJS.Timeout | null>(null);
 
   const placeBet = useCallback((amount: number) => {
-    if (!wallet) return;
+    if (!user || !wallet || isSpinning || isShowingWinner) return;
     
-    const userFriendlyAddress = Address.parse(wallet).toString();
+    const userIdentifier = `${user.id}:${wallet}`;
     
     setGameState(prevState => {
-      // Создаем нового игрока для каждой ставки
-      const newPlayer: Player = { 
-        address: userFriendlyAddress, 
-        bet: amount, 
-        color: COLORS[prevState.players.length % COLORS.length]
-      };
-      const updatedPlayers = [...prevState.players, newPlayer];
+      const existingPlayerIndex = prevState.players.findIndex(p => p.address === userIdentifier);
+      let updatedPlayers;
+      
+      if (existingPlayerIndex !== -1) {
+        updatedPlayers = prevState.players.map((player, index) => 
+          index === existingPlayerIndex 
+            ? { ...player, bet: player.bet + amount }
+            : player
+        );
+      } else {
+        const newPlayer: Player = { 
+          address: userIdentifier, 
+          bet: amount, 
+          color: COLORS[prevState.players.length % COLORS.length]
+        };
+        updatedPlayers = [...prevState.players, newPlayer];
+      }
       
       const newTotalBet = prevState.totalBet + amount;
-      
-      let newGameStartTime = prevState.gameStartTime;
-      if (updatedPlayers.length >= 2 && !newGameStartTime) {
-        newGameStartTime = Date.now();
-      }
 
       return {
         ...prevState,
         players: updatedPlayers,
         totalBet: newTotalBet,
-        gameStartTime: newGameStartTime,
       };
     });
-  }, [wallet]);
+  }, [user, wallet, isSpinning, isShowingWinner]);
 
   const startSpinning = useCallback(() => {
     setIsSpinning(true);
-    // Определяем победителя сразу, но не показываем его
-    setGameState(prevState => {
-      const winner = selectWinner(prevState.players);
-      return { ...prevState, winner };
-    });
-    // Останавливаем вращение через 5 секунд
-    setTimeout(() => setIsSpinning(false), 5000);
-  }, []);
+    const winner = selectWinner(gameState.players);
+    setGameState(prevState => ({ ...prevState, winner: winner }));
+  }, [gameState.players]);
 
-  const endGame = useCallback(() => {
-    setTimeRemaining(null);
-    setGameState(initialGameState);
+  const handleSpinEnd = useCallback(() => {
     setIsSpinning(false);
-  }, []);
-  
-  const payoutWinner = useCallback(() => {
-    if (gameState.winner) {
-      // Здесь должна быть логика для отправки всего банка победителю
-      // Например, использование смарт-контракта для перевода средств
-      console.log(`Paying out ${gameState.totalBet} TON to ${gameState.winner.address}`);
-      
-      // После выплаты сбрасываем игру
-      endGame();
+    setIsShowingWinner(true);
+    console.log(`Winner: ${gameState.winner?.address}, Amount: ${gameState.totalBet}`);
+    
+    // Здесь можно добавить логику распределения награды
+    
+    // Показываем победителя в течение 5 минут
+    setTimeout(() => {
+      setIsShowingWinner(false);
+      setGameState(prevState => ({
+        ...initialGameState,
+        players: prevState.players.map(player => ({ ...player, bet: 0 }))
+      }));
+    }, WINNER_DISPLAY_TIME);
+  }, [gameState.winner, gameState.totalBet]);
+
+  useEffect(() => {
+    const activePlayers = gameState.players.filter(p => p.bet > 0);
+    if (activePlayers.length >= 2 && !spinTimer && !isSpinning && !isShowingWinner) {
+      const timer = setTimeout(startSpinning, SPIN_DELAY);
+      setSpinTimer(timer);
     }
-  }, [gameState.winner, gameState.totalBet, endGame]);
-  
+
+    return () => {
+      if (spinTimer) {
+        clearTimeout(spinTimer);
+        setSpinTimer(null);
+      }
+    };
+  }, [gameState.players, spinTimer, startSpinning, isSpinning, isShowingWinner]);
 
   function selectWinner(players: Player[]): Player {
-    const totalWeight = players.reduce((sum, player) => sum + player.bet, 0);
+    const activePlayers = players.filter(p => p.bet > 0);
+    const totalWeight = activePlayers.reduce((sum, player) => sum + player.bet, 0);
     let random = Math.random() * totalWeight;
     
-    for (const player of players) {
+    for (const player of activePlayers) {
       random -= player.bet;
       if (random <= 0) {
         return player;
       }
     }
-    return players[players.length - 1]; // Fallback
+    return activePlayers[activePlayers.length - 1]; // Fallback
   }
 
-  return { gameState, placeBet, timeRemaining, isSpinning, startSpinning, endGame, payoutWinner };
-
-
+  return { 
+    gameState, 
+    placeBet, 
+    isSpinning, 
+    isShowingWinner,
+    handleSpinEnd,
+    user,
+    wallet
+  };
 }
